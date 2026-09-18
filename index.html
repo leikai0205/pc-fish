@@ -132,7 +132,7 @@
       <div class="bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
-            <i class="fa-solid fa-chart-pie text-cyan-400"></i> 實測繁殖紀錄資料庫
+            <i class="fa-solid fa-chart-pie text-cyan-400"></i> 實測繁殖紀錄資料庫 (社群共用)
           </h3>
           <input type="text" id="breed-search-filter" oninput="renderBreedRecords()" placeholder="搜尋魚種..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs w-full sm:w-64">
         </div>
@@ -199,7 +199,12 @@
   </div>
 
   <script>
-    // 176 隻魚品種定義 (每種 5 個星級)
+    // ==========================================
+    // 1. 請在此貼上您部署 Google Apps Script 取得的 Web App URL
+    // ==========================================
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxkzwnnEPwrsTtZz6Rs3Y2gTS-Bsk1-ZGk1y6iUa8sx8WqH57_lYZys85oOjqLbNWD99w/exec";
+
+    // 176 隻魚品種定義
     const SPECIES = [
       "陽光雀鯛", "紫羅蘭擬雀鯛", "藍寶石雀鯛", "烈焰扇尾金魚", "霜白太陽魚",
       "櫻桃鯽", "月角雀鯛", "苔背小精靈", "霓虹清潔隆頭魚", "三色錦鯉",
@@ -228,7 +233,7 @@
       }
     });
 
-    // 15 種固定賽季魚配方 (排序：126~130, 151~155, 171~175)
+    // 15 種固定賽季魚配方
     const SEASON_RECIPES = [
       { target: "126", materials: ["066","031","031","031","041","041","041","036","036","036"] },
       { target: "127", materials: ["126","032","032","032","042","042","042","037","037","037"] },
@@ -249,7 +254,6 @@
       { target: "175", materials: ["174","100","100","100","115","115","115","110","110","110"] }
     ];
 
-    // 本地紀錄資料
     let localBreedRecords = JSON.parse(localStorage.getItem('pcfish_breed_records') || '[]');
     let localSynthRecords = JSON.parse(localStorage.getItem('pcfish_synth_records') || '[]');
 
@@ -257,8 +261,8 @@
       renderSlotsUI();
       initDropdowns();
       renderSeasonRecipes();
-      renderBreedRecords();
       calculateBreedPrediction();
+      fetchAllRecordsFromGAS(); // 自動嘗試向 Google 試算表同步資料
     });
 
     function switchTab(tabId) {
@@ -315,6 +319,32 @@
       }
     }
 
+    // 從 GAS 抓取遠端社群資料庫
+    function fetchAllRecordsFromGAS() {
+      if (!GAS_API_URL || GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
+        renderBreedRecords();
+        return;
+      }
+
+      fetch(GAS_API_URL)
+        .then(res => res.json())
+        .then(data => {
+          if (data.breed) {
+            localBreedRecords = data.breed;
+            localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
+            renderBreedRecords();
+          }
+          if (data.synth) {
+            localSynthRecords = data.synth;
+            localStorage.setItem('pcfish_synth_records', JSON.stringify(localSynthRecords));
+          }
+        })
+        .catch(err => {
+          console.error("載入試算表資料失敗:", err);
+          renderBreedRecords();
+        });
+    }
+
     function searchBreedParents() {
       const targetId = document.getElementById('breed-target-fish').value;
       const targetFish = FISH_DB.find(f => f.id === targetId);
@@ -332,7 +362,7 @@
           const fA = FISH_DB.find(f => f.id === m.pA);
           const fB = FISH_DB.find(f => f.id === m.pB);
           return `<div class="bg-slate-800/80 p-2 rounded border border-slate-700/50 flex justify-between items-center">
-            <span>${fA.displayName} + ${fB.displayName}</span>
+            <span>${fA ? fA.displayName : m.pA} + ${fB ? fB.displayName : m.pB}</span>
             <span class="text-amber-400 font-bold">${m.count} 次</span>
           </div>`;
         }).join('');
@@ -343,16 +373,36 @@
       const parentA = document.getElementById('breed-parent-a').value;
       const parentB = document.getElementById('breed-parent-b').value;
       const child = document.getElementById('breed-actual-child').value;
-      
-      const existing = localBreedRecords.find(r => (r.pA === parentA && r.pB === parentB && r.child === child));
-      if(existing) {
-        existing.count++;
+
+      const payload = {
+        action: "addBreed",
+        parentA: parentA,
+        parentB: parentB,
+        child: child
+      };
+
+      showToast("正在上傳紀錄至社群資料庫...");
+
+      if (GAS_API_URL && !GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
+        fetch(GAS_API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(() => {
+          showToast("上傳成功！資料已寫入社群試算表");
+          setTimeout(fetchAllRecordsFromGAS, 1000);
+        }).catch(err => {
+          showToast("上傳失敗，已暫存至本地");
+        });
       } else {
-        localBreedRecords.push({ pA: parentA, pB: parentB, child: child, count: 1 });
+        const existing = localBreedRecords.find(r => (r.pA === parentA && r.pB === parentB && r.child === child));
+        if (existing) { existing.count++; } 
+        else { localBreedRecords.push({ pA: parentA, pB: parentB, child: child, count: 1 }); }
+        localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
+        renderBreedRecords();
+        showToast("繁殖紀錄已存檔至在地儲存");
       }
-      localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
-      renderBreedRecords();
-      showToast("繁殖紀錄已存檔！");
     }
 
     function renderBreedRecords() {
@@ -364,7 +414,7 @@
         const fA = FISH_DB.find(f => f.id === r.pA);
         const fB = FISH_DB.find(f => f.id === r.pB);
         const fC = FISH_DB.find(f => f.id === r.child);
-        return (fA?.displayName + fB?.displayName + fC?.displayName).toLowerCase().includes(filterText);
+        return ((fA?.displayName || '') + (fB?.displayName || '') + (fC?.displayName || '')).toLowerCase().includes(filterText);
       });
 
       if(filtered.length === 0) {
@@ -377,9 +427,9 @@
         const fB = FISH_DB.find(f => f.id === r.pB);
         const fC = FISH_DB.find(f => f.id === r.child);
         return `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
-          <td class="p-3">${fA?.displayName}</td>
-          <td class="p-3">${fB?.displayName}</td>
-          <td class="p-3 text-cyan-300 font-semibold">${fC?.displayName}</td>
+          <td class="p-3">${fA?.displayName || r.pA}</td>
+          <td class="p-3">${fB?.displayName || r.pB}</td>
+          <td class="p-3 text-cyan-300 font-semibold">${fC?.displayName || r.child}</td>
           <td class="p-3 text-center">${r.count} 次</td>
           <td class="p-3 text-right"><button onclick="deleteBreedRecord(${idx})" class="text-red-400 hover:underline">刪除</button></td>
         </tr>`;
@@ -392,18 +442,14 @@
       renderBreedRecords();
     }
 
-    // 渲染折疊選單賽季配方 (按編號排序，單行點擊展開，無一鍵帶入按鈕)
     function renderSeasonRecipes() {
       const container = document.getElementById('season-recipes-container');
       if(!container) return;
 
-      // 依 Target ID 排序
       const sortedRecipes = [...SEASON_RECIPES].sort((a, b) => parseInt(a.target) - parseInt(b.target));
 
       container.innerHTML = sortedRecipes.map((recipe) => {
         const targetFish = FISH_DB.find(f => f.id === recipe.target);
-        
-        // 統計素材數量
         const counts = {};
         recipe.materials.forEach(m => { counts[m] = (counts[m] || 0) + 1; });
         const matListStr = Object.entries(counts).map(([mId, qty]) => {
@@ -413,7 +459,6 @@
 
         return `
           <div class="bg-slate-900/80 rounded-xl border border-slate-700/80 overflow-hidden transition-all">
-            <!-- Header (單行，點擊展開/收合) -->
             <button onclick="toggleRecipeAccordion('${recipe.target}')" class="w-full px-4 py-3 text-left flex justify-between items-center bg-slate-800/60 hover:bg-slate-800 transition-colors focus:outline-none">
               <div class="flex items-center space-x-3">
                 <span class="bg-amber-400/10 text-amber-400 border border-amber-400/30 px-2.5 py-0.5 rounded text-xs font-bold">#${recipe.target}</span>
@@ -424,8 +469,6 @@
                 <i id="accordion-icon-${recipe.target}" class="fa-solid fa-chevron-down transition-transform duration-300"></i>
               </div>
             </button>
-
-            <!-- Content (預設隱藏) -->
             <div id="accordion-content-${recipe.target}" class="hidden p-4 border-t border-slate-800 bg-slate-950/60 space-y-2">
               <div class="text-xs text-slate-400 font-medium mb-1">合成所需素材魚 (共 10 隻)：</div>
               <div class="flex flex-wrap gap-2 text-xs">
@@ -463,16 +506,36 @@
         materials.push(document.getElementById(`synth-slot-${i}`).value);
       }
       const targetId = document.getElementById('synth-target-result').value;
-      localSynthRecords.push({ targetId, materials });
-      localStorage.setItem('pcfish_synth_records', JSON.stringify(localSynthRecords));
-      showToast("合成配方已儲存！");
+
+      const payload = {
+        action: "addSynth",
+        targetId: targetId,
+        materials: materials
+      };
+
+      showToast("正在上傳合成配方至社群資料庫...");
+
+      if (GAS_API_URL && !GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
+        fetch(GAS_API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(() => {
+          showToast("儲存成功！合成配方已上傳");
+          setTimeout(fetchAllRecordsFromGAS, 1000);
+        });
+      } else {
+        localSynthRecords.push({ targetId, materials });
+        localStorage.setItem('pcfish_synth_records', JSON.stringify(localSynthRecords));
+        showToast("合成配方已儲存至在地紀錄！");
+      }
     }
 
     function queryReverseSynthesis() {
       const targetId = document.getElementById('synth-reverse-target').value;
       const resContainer = document.getElementById('synth-reverse-results');
       
-      // 搜尋賽季固定配方 + 玩家自訂紀錄
       const seasonMatch = SEASON_RECIPES.filter(r => r.target === targetId);
       const userMatches = localSynthRecords.filter(r => r.targetId === targetId);
 
