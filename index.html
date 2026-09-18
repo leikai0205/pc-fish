@@ -140,8 +140,9 @@
           <h2 class="text-xl font-black text-white flex items-center gap-2">
             <i class="fa-solid fa-crown text-amber-400"></i> 第一季 15 種賽季魚固定 10 隻魚合成配方
           </h2>
+          <span class="text-xs text-slate-400">點擊下方項目可展開查看詳細 10 隻配方</span>
         </div>
-        <div id="season-recipes-container" class="space-y-2 pt-2"></div>
+        <div id="season-recipes-container" class="space-y-2.5 pt-2"></div>
       </div>
     </div>
   </main>
@@ -192,11 +193,39 @@
           name: `${sp} ${starStr}`,
           star: star,
           category: category,
-          displayName: `#${idStr} ${sp} ${starStr} [${category}]`
+          displayName: formatFishDisplayName(idStr, `${sp} ${starStr}`, category)
         });
         currentId++;
       }
     });
+
+    function formatFishDisplayName(id, name, cat) {
+      let catSpan = `<span class="${getCategoryColorClass(cat)}">[${cat}]</span>`;
+      return `#${id} ${name} ${catSpan}`;
+    }
+
+    function getCategoryColorClass(cat) {
+      switch(cat) {
+        case '基本': return 'text-slate-400';
+        case '普通': return 'text-white';
+        case '高級': return 'text-emerald-400';
+        case '稀有': return 'text-amber-400 font-bold';
+        case '傳說': return 'text-orange-500 font-bold';
+        case '神話': return 'text-purple-400 font-bold';
+        default: return 'text-slate-200';
+      }
+    }
+
+    // 為文字中的品質套用對應顏色
+    function colorizeCategoriesInText(text) {
+      return text
+        .replace(/神話/g, '<span class="text-purple-400 font-bold">神話</span>')
+        .replace(/傳說/g, '<span class="text-orange-500 font-bold">傳說</span>')
+        .replace(/稀有/g, '<span class="text-amber-400 font-bold">稀有</span>')
+        .replace(/高級/g, '<span class="text-emerald-400 font-bold">高級</span>')
+        .replace(/普通/g, '<span class="text-white">普通</span>')
+        .replace(/基本/g, '<span class="text-slate-400">基本</span>');
+    }
 
     const SEASON_RECIPES = [
       { target: "126", materials: ["066","031","031","031","041","041","041","036","036","036"] },
@@ -241,7 +270,10 @@
     }
 
     function initDropdowns() {
-      const optionsHtml = FISH_DB.map(f => `<option value="${f.id}">${f.displayName}</option>`).join('');
+      const optionsHtml = FISH_DB.map(f => {
+        let plainText = f.displayName.replace(/<[^>]*>?/gm, '');
+        return `<option value="${f.id}">${plainText}</option>`;
+      }).join('');
       ['breed-parent-a', 'breed-parent-b', 'breed-actual-child', 'breed-target-fish'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.innerHTML = optionsHtml;
@@ -250,32 +282,27 @@
       document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
     }
 
-    // 取得對應品質的 Tailwind 顏色 class
-    function getCategoryColorClass(cat) {
-      switch(cat) {
-        case '基本': return 'text-slate-400';    // 灰色
-        case '普通': return 'text-white font-normal';      // 白色
-        case '高級': return 'text-emerald-400';  // 綠色
-        case '稀有': return 'text-amber-400 font-bold';    // 金色
-        case '傳說': return 'text-orange-500 font-bold';   // 橘色
-        case '神話': return 'text-purple-400 font-bold';   // 紫色
-        default: return 'text-slate-200';
-      }
-    }
-
+    // 精準對應 20 種官方配方（雙向不分順序）
     function getValidCategories(c1, c2) {
       let pair = [c1, c2].sort().join('+');
+      
       if (pair === '基本+基本') return { text: "普通 100%", allowed: ["普通"] };
       if (pair === '基本+普通') return { text: "高級 10% | 普通 90%", allowed: ["高級", "普通"] };
-      if (pair === '普通+普通' || pair === '基本+高級') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '基本+稀有' || pair === '高級+普通') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '基本+傳說' || pair === '高級+高級') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
-      if (pair === '基本+神話' || pair === '普通+稀有' || pair === '高級+普通') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
-      if (pair === '普通+傳說' || pair === '高級+神話') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
-      if (pair === '高級+傳說' || pair === '稀有+稀有') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
-      if (pair === '稀有+神話' || pair === '傳說+傳說') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
-      if (pair === '稀有+傳說') return { text: "神話 30% | 傳說 70%", allowed: ["神話", "傳說"] };
-      return { text: "綜合雜交模式", allowed: ["基本", "普通", "高級", "稀有", "傳說", "神話"] };
+      if (pair === '基本+高級') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '普通+普通') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '基本+稀有') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '普通+高級') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '高級+高級') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
+      if (pair === '普通+稀有') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
+      if (pair === '基本+傳說') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
+      if (pair === '高級+稀有') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
+      if (pair === '普通+傳說' || pair === '基本+神話') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
+      if (pair === '稀有+稀有' || pair === '高級+傳說' || pair === '普通+神話') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
+      if (pair === '高級+神話' || pair === '稀有+傳說') return { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] };
+      if (pair === '傳說+傳說') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
+      if (pair === '稀有+神話') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
+      
+      return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
     }
 
     function calculateBreedPrediction() {
@@ -285,15 +312,7 @@
       
       if (!pA || !pB) return;
       const resultRule = getValidCategories(pA.category, pB.category);
-
-      // 為機率文字中的品質套用對應顏色
-      let formattedText = resultRule.text
-        .replace(/神話/g, '<span class="text-purple-400 font-bold">神話</span>')
-        .replace(/傳說/g, '<span class="text-orange-500 font-bold">傳說</span>')
-        .replace(/稀有/g, '<span class="text-amber-400 font-bold">稀有</span>')
-        .replace(/高級/g, '<span class="text-emerald-400 font-bold">高級</span>')
-        .replace(/普通/g, '<span class="text-white">普通</span>')
-        .replace(/基本/g, '<span class="text-slate-400">基本</span>');
+      let formattedText = colorizeCategoriesInText(resultRule.text);
 
       resContainer.innerHTML = `<div>${pA.displayName} × ${pB.displayName}</div><div class="mt-1">【機率預測】${formattedText}</div>`;
     }
@@ -366,12 +385,12 @@
       showToast("正在上傳紀錄至社群資料庫...");
 
       const nowStr = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+      // 樂觀更新：立刻在前方插入
       localBreedRecords.unshift({
-        rowIndex: 99999,
-        time: nowStr,
         pA: parentAId,
         pB: parentBId,
         child: childId,
+        time: nowStr,
         count: 1,
         ip: userClientIp
       });
@@ -417,8 +436,8 @@
         const fB = FISH_DB.find(f => f.id === r.pB);
         const fC = FISH_DB.find(f => f.id === r.child);
         
-        let canDelete = (!r.ip || r.ip === userClientIp || userClientIp === "unknown" || r.rowIndex === 99999);
-        let deleteBtnHtml = canDelete ? `<button onclick="deleteBreedRecord(${r.rowIndex})" class="text-red-400 hover:underline">刪除</button>` : `<span class="text-slate-600 text-[10px]">非本人</span>`;
+        let canDelete = (!r.ip || r.ip === userClientIp || userClientIp === "unknown");
+        let deleteBtnHtml = canDelete ? `<button onclick="deleteBreedRecord('${r.pA}', '${r.pB}', '${r.child}')" class="text-red-400 hover:underline cursor-pointer">刪除</button>` : `<span class="text-slate-600 text-[10px]">非本人</span>`;
 
         return `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
           <td class="p-3 text-slate-400 text-[11px]">${r.time || '剛剛'}</td>
@@ -431,48 +450,72 @@
       }).join('');
     }
 
-    function deleteBreedRecord(rowIndex) {
+    function deleteBreedRecord(pA, pB, child) {
       if(!confirm("確定要刪除這筆實測紀錄嗎？")) return;
 
       if (GAS_API_URL && !GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
         fetch(GAS_API_URL, {
-          Method: "POST",
+          method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "deleteBreed", rowIndex: rowIndex })
+          body: JSON.stringify({ action: "deleteBreed", parentA: pA, parentB: pB, child: child })
         }).then(() => {
           showToast("已送出刪除指令");
           setTimeout(fetchAllRecordsFromGAS, 1500);
         });
       }
 
-      localBreedRecords = localBreedRecords.filter(r => r.rowIndex !== rowIndex);
+      // 本地同步立刻移除
+      localBreedRecords = localBreedRecords.filter(r => !(r.pA === pA && r.pB === pB && r.child === child));
       localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
       renderBreedRecords();
       searchBreedParents();
       showToast("已刪除");
     }
 
+    // 合成頁面：一開始只顯示目標魚，點擊後展開 10 隻配方
     function renderSeasonRecipes() {
       const container = document.getElementById('season-recipes-container');
       if(!container) return;
-      container.innerHTML = SEASON_RECIPES.map((recipe) => {
+      
+      container.innerHTML = SEASON_RECIPES.map((recipe, index) => {
         const targetFish = FISH_DB.find(f => f.id === recipe.target);
         const counts = {};
         recipe.materials.forEach(m => { counts[m] = (counts[m] || 0) + 1; });
+        
         const matListStr = Object.entries(counts).map(([mId, qty]) => {
           const f = FISH_DB.find(x => x.id === mId);
-          return `<span class="bg-slate-900 border border-slate-700 px-2 py-1 rounded text-cyan-300 font-medium">${f ? f.displayName : '#' + mId} <span class="text-amber-400 font-bold">×${qty}</span></span>`;
+          return `<span class="bg-slate-900 border border-slate-700 px-2.5 py-1 rounded text-xs font-medium">${f ? f.displayName : '#' + mId} <span class="text-amber-400 font-bold">×${qty}</span></span>`;
         }).join(' ');
 
-        return `<div class="bg-slate-900/80 rounded-xl border border-slate-700 p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div class="flex items-center space-x-3">
-            <span class="bg-amber-400/10 text-amber-400 border border-amber-400/30 px-2.5 py-0.5 rounded text-xs font-bold">#${recipe.target}</span>
-            <span class="font-bold text-slate-100 text-sm">${targetFish ? targetFish.displayName : '#' + recipe.target}</span>
+        return `<div class="bg-slate-900/80 rounded-xl border border-slate-700 overflow-hidden transition-all">
+          <div onclick="toggleRecipe(${index})" class="p-3.5 flex justify-between items-center cursor-pointer hover:bg-slate-800/60">
+            <div class="flex items-center space-x-3">
+              <span class="bg-amber-400/10 text-amber-400 border border-amber-400/30 px-2.5 py-0.5 rounded text-xs font-bold">#${recipe.target}</span>
+              <span class="font-bold text-slate-100 text-sm">${targetFish ? targetFish.displayName : '#' + recipe.target}</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-cyan-400 font-medium">
+              <span>點擊查看 10 隻配方</span>
+              <i id="recipe-icon-${index}" class="fa-solid fa-chevron-down transition-transform"></i>
+            </div>
           </div>
-          <div class="flex flex-wrap gap-1.5 text-xs">${matListStr}</div>
+          <div id="recipe-body-${index}" class="hidden p-3.5 bg-slate-950/60 border-t border-slate-800 flex flex-wrap gap-2">
+            ${matListStr}
+          </div>
         </div>`;
       }).join('');
+    }
+
+    function toggleRecipe(index) {
+      const body = document.getElementById(`recipe-body-${index}`);
+      const icon = document.getElementById(`recipe-icon-${index}`);
+      if (body.classList.contains('hidden')) {
+        body.classList.remove('hidden');
+        icon.classList.add('rotate-180');
+      } else {
+        body.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+      }
     }
 
     function showToast(msg) {
