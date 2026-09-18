@@ -279,31 +279,35 @@
       document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
     }
 
-    // 精準對應使用者提供的所有 20 種官方配方（雙向不分順序）
+    // 精準對應您提供的所有雙親組合（不分順序）
     function getValidCategories(c1, c2) {
+      // 標準化排序：保證無論先選誰結果都一致
       let pair = [c1, c2].sort().join('+');
       
-      if (pair === '基本+基本') return { text: "普通 100%", allowed: ["普通"] };
-      if (pair === '基本+普通') return { text: "高級 10% | 普通 90%", allowed: ["高級", "普通"] };
-      if (pair === '基本+高級') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '普通+普通') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '普通+高級') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '高級+高級') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
-      if (pair === '基本+稀有') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '普通+稀有') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
-      if (pair === '高級+稀有') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
-      if (pair === '稀有+稀有') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
-      if (pair === '基本+傳說') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
-      if (pair === '普通+傳說') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
-      if (pair === '高級+傳說') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
-      if (pair === '稀有+傳說') return { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] };
-      if (pair === '傳說+傳說') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
-      if (pair === '基本+神話') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
-      if (pair === '普通+神話') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
-      if (pair === '高級+神話') return { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] };
-      if (pair === '稀有+神話') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
-      
-      return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
+      const mapping = {
+        '基本+基本': { text: "普通 100%", allowed: ["普通"] },
+        '基本+普通': { text: "高級 10% | 普通 90%", allowed: ["高級", "普通"] },
+        '基本+高級': { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] },
+        '普通+普通': { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] },
+        '高級+普通': { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] },
+        '高級+高級': { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] },
+        '基本+稀有': { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] },
+        '普通+稀有': { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] },
+        '高級+稀有': { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] },
+        '稀有+稀有': { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] },
+        '基本+傳說': { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] },
+        '普通+傳說': { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] },
+        '高級+傳說': { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] },
+        '稀有+傳說': { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] },
+        '傳說+傳說': { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] },
+        '基本+神話': { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] },
+        '普通+神話': { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] },
+        '高級+神話': { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] },
+        '稀有+神話': { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] },
+        '傳說+神話': { text: "神話 30% | 傳說 70%", allowed: ["神話", "傳說"] }
+      };
+
+      return mapping[pair] || { text: "未知機率", allowed: ["基本", "普通", "高級", "稀有", "傳說", "神話"] };
     }
 
     function calculateBreedPrediction() {
@@ -489,7 +493,7 @@
         return `<div class="bg-slate-900/80 rounded-xl border border-slate-700 overflow-hidden transition-all">
           <div onclick="toggleRecipe(${index})" class="p-3.5 flex justify-between items-center cursor-pointer hover:bg-slate-800/60">
             <div class="flex items-center space-x-3">
-              <span class="bg-amber-400/10 text-amber-400 border border-amber-400/30 px-2.5 py-0.5 rounded text-xs font-bold">#${recipe.target}</span>
+              <span class="bg-amber-400/15 text-amber-400 border border-amber-400/30 px-2.5 py-0.5 rounded text-xs font-bold">#${recipe.target}</span>
               <span class="font-bold text-slate-100 text-sm">${targetFish ? targetFish.displayName : recipe.target}</span>
             </div>
             <div class="flex items-center gap-2 text-xs text-cyan-400 font-medium">
