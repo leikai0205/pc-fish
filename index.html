@@ -162,7 +162,8 @@
           </h2>
           <span class="text-xs bg-amber-400/10 text-amber-400 border border-amber-400/20 px-3 py-1 rounded-full font-semibold">100% 成功率</span>
         </div>
-        <div id="season-recipes-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2"></div>
+        <!-- Accordion Container -->
+        <div id="season-recipes-container" class="space-y-2 pt-2"></div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -227,7 +228,7 @@
       }
     });
 
-    // 15 種固定賽季魚配方 (目標ID -> 10隻素材ID陣列)
+    // 15 種固定賽季魚配方 (排序：126~130, 151~155, 171~175)
     const SEASON_RECIPES = [
       { target: "126", materials: ["066","031","031","031","041","041","041","036","036","036"] },
       { target: "127", materials: ["126","032","032","032","042","042","042","037","037","037"] },
@@ -391,11 +392,15 @@
       renderBreedRecords();
     }
 
+    // 渲染折疊選單賽季配方 (按編號排序，單行點擊展開，無一鍵帶入按鈕)
     function renderSeasonRecipes() {
       const container = document.getElementById('season-recipes-container');
       if(!container) return;
 
-      container.innerHTML = SEASON_RECIPES.map((recipe, index) => {
+      // 依 Target ID 排序
+      const sortedRecipes = [...SEASON_RECIPES].sort((a, b) => parseInt(a.target) - parseInt(b.target));
+
+      container.innerHTML = sortedRecipes.map((recipe) => {
         const targetFish = FISH_DB.find(f => f.id === recipe.target);
         
         // 統計素材數量
@@ -403,36 +408,47 @@
         recipe.materials.forEach(m => { counts[m] = (counts[m] || 0) + 1; });
         const matListStr = Object.entries(counts).map(([mId, qty]) => {
           const f = FISH_DB.find(x => x.id === mId);
-          return `${f ? f.displayName : '#' + mId} × ${qty}`;
-        }).join(' + ');
+          return `<span class="bg-slate-900 border border-slate-700/80 px-2.5 py-1 rounded text-cyan-300 font-medium">${f ? f.displayName : '#' + mId} <span class="text-amber-400 font-bold">×${qty}</span></span>`;
+        }).join(' ');
 
         return `
-          <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-700/80 hover:border-cyan-500/50 transition-all flex flex-col justify-between gap-2">
-            <div>
-              <div class="flex justify-between items-center mb-1">
-                <span class="font-bold text-amber-300 text-sm">${targetFish ? targetFish.displayName : '#' + recipe.target}</span>
-                <span class="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded">配方 ${index + 1}</span>
+          <div class="bg-slate-900/80 rounded-xl border border-slate-700/80 overflow-hidden transition-all">
+            <!-- Header (單行，點擊展開/收合) -->
+            <button onclick="toggleRecipeAccordion('${recipe.target}')" class="w-full px-4 py-3 text-left flex justify-between items-center bg-slate-800/60 hover:bg-slate-800 transition-colors focus:outline-none">
+              <div class="flex items-center space-x-3">
+                <span class="bg-amber-400/10 text-amber-400 border border-amber-400/30 px-2.5 py-0.5 rounded text-xs font-bold">#${recipe.target}</span>
+                <span class="font-bold text-slate-100 text-sm">${targetFish ? targetFish.displayName : '#' + recipe.target}</span>
               </div>
-              <div class="text-xs text-slate-300 leading-relaxed bg-slate-950/50 p-2 rounded border border-slate-800">
+              <div class="flex items-center space-x-2 text-slate-400 text-xs">
+                <span>點擊查看 10 隻配方</span>
+                <i id="accordion-icon-${recipe.target}" class="fa-solid fa-chevron-down transition-transform duration-300"></i>
+              </div>
+            </button>
+
+            <!-- Content (預設隱藏) -->
+            <div id="accordion-content-${recipe.target}" class="hidden p-4 border-t border-slate-800 bg-slate-950/60 space-y-2">
+              <div class="text-xs text-slate-400 font-medium mb-1">合成所需素材魚 (共 10 隻)：</div>
+              <div class="flex flex-wrap gap-2 text-xs">
                 ${matListStr}
               </div>
             </div>
-            <button onclick='loadRecipeToSlots(${JSON.stringify(recipe.materials)}, "${recipe.target}")' class="w-full bg-slate-800 hover:bg-cyan-600 hover:text-white text-cyan-400 text-xs font-semibold py-1.5 rounded border border-cyan-500/30 transition-all">
-              <i class="fa-solid fa-arrow-down-short-wide"></i> 一鍵帶入此配方
-            </button>
           </div>
         `;
       }).join('');
     }
 
-    function loadRecipeToSlots(materialsArray, targetId) {
-      for(let i = 0; i < 10; i++) {
-        const slotEl = document.getElementById(`synth-slot-${i+1}`);
-        if(slotEl) slotEl.value = materialsArray[i] || "000";
+    function toggleRecipeAccordion(targetId) {
+      const content = document.getElementById(`accordion-content-${targetId}`);
+      const icon = document.getElementById(`accordion-icon-${targetId}`);
+      if(content) {
+        if(content.classList.contains('hidden')) {
+          content.classList.remove('hidden');
+          if(icon) icon.classList.add('rotate-180');
+        } else {
+          content.classList.add('hidden');
+          if(icon) icon.classList.remove('rotate-180');
+        }
       }
-      const targetEl = document.getElementById('synth-target-result');
-      if(targetEl && targetId) targetEl.value = targetId;
-      showToast("配方已成功填入 10 個素材槽！");
     }
 
     function clearSynthesisPicker() {
