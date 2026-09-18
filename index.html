@@ -250,6 +250,19 @@
       document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
     }
 
+    // 取得對應品質的 Tailwind 顏色 class
+    function getCategoryColorClass(cat) {
+      switch(cat) {
+        case '基本': return 'text-slate-400';    // 灰色
+        case '普通': return 'text-white font-normal';      // 白色
+        case '高級': return 'text-emerald-400';  // 綠色
+        case '稀有': return 'text-amber-400 font-bold';    // 金色
+        case '傳說': return 'text-orange-500 font-bold';   // 橘色
+        case '神話': return 'text-purple-400 font-bold';   // 紫色
+        default: return 'text-slate-200';
+      }
+    }
+
     function getValidCategories(c1, c2) {
       let pair = [c1, c2].sort().join('+');
       if (pair === '基本+基本') return { text: "普通 100%", allowed: ["普通"] };
@@ -272,7 +285,17 @@
       
       if (!pA || !pB) return;
       const resultRule = getValidCategories(pA.category, pB.category);
-      resContainer.innerHTML = `<div>${pA.displayName} × ${pB.displayName}</div><div class="mt-1 text-amber-300">【機率預測】${resultRule.text}</div>`;
+
+      // 為機率文字中的品質套用對應顏色
+      let formattedText = resultRule.text
+        .replace(/神話/g, '<span class="text-purple-400 font-bold">神話</span>')
+        .replace(/傳說/g, '<span class="text-orange-500 font-bold">傳說</span>')
+        .replace(/稀有/g, '<span class="text-amber-400 font-bold">稀有</span>')
+        .replace(/高級/g, '<span class="text-emerald-400 font-bold">高級</span>')
+        .replace(/普通/g, '<span class="text-white">普通</span>')
+        .replace(/基本/g, '<span class="text-slate-400">基本</span>');
+
+      resContainer.innerHTML = `<div>${pA.displayName} × ${pB.displayName}</div><div class="mt-1">【機率預測】${formattedText}</div>`;
     }
 
     function fetchAllRecordsFromGAS() {
@@ -288,7 +311,6 @@
             localBreedRecords = data.breed;
             localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
             renderBreedRecords();
-            // 如果剛好在反查畫面，順便更新反查結果
             searchBreedParents();
           }
         })
@@ -343,10 +365,9 @@
 
       showToast("正在上傳紀錄至社群資料庫...");
 
-      // 樂觀更新：立刻在畫面上新增一筆，讓時間與內容馬上呈現，不需等待雲端延遲
       const nowStr = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
       localBreedRecords.unshift({
-        rowIndex: 99999, // 暫時編號
+        rowIndex: 99999,
         time: nowStr,
         pA: parentAId,
         pB: parentBId,
@@ -384,7 +405,6 @@
         return ((r.time || '') + (fA?.displayName || '') + (fB?.displayName || '') + (fC?.displayName || '')).toLowerCase().includes(filterText);
       });
 
-      // 只取最近 10 筆
       const latestTen = filtered.slice(0, 10);
 
       if(latestTen.length === 0) {
@@ -397,7 +417,7 @@
         const fB = FISH_DB.find(f => f.id === r.pB);
         const fC = FISH_DB.find(f => f.id === r.child);
         
-        let canDelete = (!r.ip || r.ip === userClientIp || userClientIp === "unknown");
+        let canDelete = (!r.ip || r.ip === userClientIp || userClientIp === "unknown" || r.rowIndex === 99999);
         let deleteBtnHtml = canDelete ? `<button onclick="deleteBreedRecord(${r.rowIndex})" class="text-red-400 hover:underline">刪除</button>` : `<span class="text-slate-600 text-[10px]">非本人</span>`;
 
         return `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
@@ -426,7 +446,6 @@
         });
       }
 
-      // 本地同步立刻移除該筆
       localBreedRecords = localBreedRecords.filter(r => r.rowIndex !== rowIndex);
       localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
       renderBreedRecords();
