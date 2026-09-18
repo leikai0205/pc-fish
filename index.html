@@ -200,7 +200,7 @@
 
   <script>
     // ==========================================
-    // 1. 請在此貼上您部署 Google Apps Script 取得的 Web App URL
+    // 請在此貼上您的 Google Apps Script 網址
     // ==========================================
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxkzwnnEPwrsTtZz6Rs3Y2gTS-Bsk1-ZGk1y6iUa8sx8WqH57_lYZys85oOjqLbNWD99w/exec";
 
@@ -262,7 +262,12 @@
       initDropdowns();
       renderSeasonRecipes();
       calculateBreedPrediction();
-      fetchAllRecordsFromGAS(); // 自動嘗試向 Google 試算表同步資料
+      
+      // 1. 一開網頁先從雲端同步一次
+      fetchAllRecordsFromGAS(); 
+
+      // 2. 自動背景同步（每 10 秒自動更新，其他人不用按重新整理也會同步）
+      setInterval(fetchAllRecordsFromGAS, 10000);
     });
 
     function switchTab(tabId) {
@@ -319,7 +324,7 @@
       }
     }
 
-    // 從 GAS 抓取遠端社群資料庫
+    // 從 Google 試算表抓取遠端社群資料
     function fetchAllRecordsFromGAS() {
       if (!GAS_API_URL || GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
         renderBreedRecords();
@@ -329,19 +334,25 @@
       fetch(GAS_API_URL)
         .then(res => res.json())
         .then(data => {
-          if (data.breed) {
+          let updated = false;
+          if (data.breed && JSON.stringify(data.breed) !== JSON.stringify(localBreedRecords)) {
             localBreedRecords = data.breed;
             localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
             renderBreedRecords();
+            updated = true;
           }
-          if (data.synth) {
+          if (data.synth && JSON.stringify(data.synth) !== JSON.stringify(localSynthRecords)) {
             localSynthRecords = data.synth;
             localStorage.setItem('pcfish_synth_records', JSON.stringify(localSynthRecords));
+            updated = true;
+          }
+          const targetFishEl = document.getElementById('breed-target-fish');
+          if (targetFishEl && targetFishEl.value && updated) {
+            searchBreedParents();
           }
         })
         .catch(err => {
-          console.error("載入試算表資料失敗:", err);
-          renderBreedRecords();
+          console.error("背景同步試算表失敗:", err);
         });
     }
 
@@ -369,6 +380,7 @@
       }
     }
 
+    // 支援樂觀更新的繁殖紀錄上傳
     function recordBreedExperiment() {
       const parentA = document.getElementById('breed-parent-a').value;
       const parentB = document.getElementById('breed-parent-b').value;
@@ -383,6 +395,22 @@
 
       showToast("正在上傳紀錄至社群資料庫...");
 
+      // 1. 【樂觀更新】畫面立刻呈現，不需等待雲端回應
+      const existing = localBreedRecords.find(r => (r.pA === parentA && r.pB === parentB && r.child === child));
+      if (existing) { 
+        existing.count++; 
+      } else { 
+        localBreedRecords.push({ pA: parentA, pB: parentB, child: child, count: 1 }); 
+      }
+      localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
+      renderBreedRecords();
+      
+      const targetFishEl = document.getElementById('breed-target-fish');
+      if (targetFishEl && targetFishEl.value === child) {
+        searchBreedParents();
+      }
+
+      // 2. 背景發送 POST 給 Google 試算表
       if (GAS_API_URL && !GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
         fetch(GAS_API_URL, {
           method: "POST",
@@ -390,18 +418,13 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         }).then(() => {
-          showToast("上傳成功！資料已寫入社群試算表");
-          setTimeout(fetchAllRecordsFromGAS, 1000);
+          showToast("上傳成功！資料已同步至社群試算表");
+          setTimeout(fetchAllRecordsFromGAS, 2000);
         }).catch(err => {
-          showToast("上傳失敗，已暫存至本地");
+          showToast("上傳雲端失敗，已保留本地紀錄");
         });
       } else {
-        const existing = localBreedRecords.find(r => (r.pA === parentA && r.pB === parentB && r.child === child));
-        if (existing) { existing.count++; } 
-        else { localBreedRecords.push({ pA: parentA, pB: parentB, child: child, count: 1 }); }
-        localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
-        renderBreedRecords();
-        showToast("繁殖紀錄已存檔至在地儲存");
+        showToast("繁殖紀錄已存檔！");
       }
     }
 
