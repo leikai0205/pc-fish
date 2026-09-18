@@ -119,6 +119,7 @@
           <table class="w-full text-left border-collapse text-xs">
             <thead>
               <tr class="bg-slate-900 text-slate-400 border-b border-slate-700">
+                <th class="p-3">時間 (UTC+8)</th>
                 <th class="p-3">親魚 A</th>
                 <th class="p-3">親魚 B</th>
                 <th class="p-3">實測產出</th>
@@ -146,7 +147,7 @@
   </main>
 
   <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 text-white border border-cyan-400 px-4 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 z-50 text-xs flex items-center gap-2">
-    <i class="fa-solid fa-circle-check text-cyan-400"></i>
+    <i id="toast-icon" class="fa-solid fa-circle-check text-cyan-400"></i>
     <span id="toast-msg">操作成功</span>
   </div>
 
@@ -249,7 +250,6 @@
       document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
     }
 
-    // 完整機率對應矩陣與防呆規則
     function getValidCategories(c1, c2) {
       let pair = [c1, c2].sort().join('+');
       if (pair === '基本+基本') return { text: "普通 100%", allowed: ["普通"] };
@@ -288,6 +288,8 @@
             localBreedRecords = data.breed;
             localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
             renderBreedRecords();
+            // 如果剛好在反查畫面，順便更新反查結果
+            searchBreedParents();
           }
         })
         .catch(err => { console.error("同步失敗", err); });
@@ -325,11 +327,10 @@
       const pB = FISH_DB.find(f => f.id === parentBId);
       const childFish = FISH_DB.find(f => f.id === childId);
 
-      // 防呆機制檢查
       const rule = getValidCategories(pA.category, pB.category);
       if (!rule.allowed.includes(childFish.category)) {
         alert(`【防呆機制攔截】\n\n根據官方配方 (${pA.category} + ${pB.category})，不可能生出等級為 [${childFish.category}] 的「${childFish.displayName}」！\n\n正確產出範圍應為：${rule.text}\n請重新選擇正確的實測產出魚種。`);
-        return; // 直接中止，不送出
+        return;
       }
 
       const payload = {
@@ -342,6 +343,20 @@
 
       showToast("正在上傳紀錄至社群資料庫...");
 
+      // 樂觀更新：立刻在畫面上新增一筆，讓時間與內容馬上呈現，不需等待雲端延遲
+      const nowStr = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+      localBreedRecords.unshift({
+        rowIndex: 99999, // 暫時編號
+        time: nowStr,
+        pA: parentAId,
+        pB: parentBId,
+        child: childId,
+        count: 1,
+        ip: userClientIp
+      });
+      renderBreedRecords();
+      searchBreedParents();
+
       if (GAS_API_URL && !GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
         fetch(GAS_API_URL, {
           method: "POST",
@@ -353,9 +368,6 @@
           setTimeout(fetchAllRecordsFromGAS, 1500);
         });
       } else {
-        localBreedRecords.unshift({ rowIndex: 999, pA: parentAId, pB: parentBId, child: childId, count: 1, ip: userClientIp });
-        localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
-        renderBreedRecords();
         showToast("已存檔！");
       }
     }
@@ -369,14 +381,14 @@
         const fA = FISH_DB.find(f => f.id === r.pA);
         const fB = FISH_DB.find(f => f.id === r.pB);
         const fC = FISH_DB.find(f => f.id === r.child);
-        return ((fA?.displayName || '') + (fB?.displayName || '') + (fC?.displayName || '')).toLowerCase().includes(filterText);
+        return ((r.time || '') + (fA?.displayName || '') + (fB?.displayName || '') + (fC?.displayName || '')).toLowerCase().includes(filterText);
       });
 
       // 只取最近 10 筆
       const latestTen = filtered.slice(0, 10);
 
       if(latestTen.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">尚無相關紀錄</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">尚無相關紀錄</td></tr>`;
         return;
       }
 
@@ -389,6 +401,7 @@
         let deleteBtnHtml = canDelete ? `<button onclick="deleteBreedRecord(${r.rowIndex})" class="text-red-400 hover:underline">刪除</button>` : `<span class="text-slate-600 text-[10px]">非本人</span>`;
 
         return `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
+          <td class="p-3 text-slate-400 text-[11px]">${r.time || '剛剛'}</td>
           <td class="p-3">${fA?.displayName || r.pA}</td>
           <td class="p-3">${fB?.displayName || r.pB}</td>
           <td class="p-3 text-cyan-300 font-semibold">${fC?.displayName || r.child}</td>
@@ -403,7 +416,7 @@
 
       if (GAS_API_URL && !GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
         fetch(GAS_API_URL, {
-          method: "POST",
+          Method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "deleteBreed", rowIndex: rowIndex })
@@ -412,6 +425,12 @@
           setTimeout(fetchAllRecordsFromGAS, 1500);
         });
       }
+
+      // 本地同步立刻移除該筆
+      localBreedRecords = localBreedRecords.filter(r => r.rowIndex !== rowIndex);
+      localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
+      renderBreedRecords();
+      searchBreedParents();
       showToast("已刪除");
     }
 
