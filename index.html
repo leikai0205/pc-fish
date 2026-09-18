@@ -111,7 +111,7 @@
       <div class="bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
-            <i class="fa-solid fa-chart-pie text-cyan-400"></i> 實測繁殖紀錄資料庫 (最近 10 筆社群共用)
+            <i class="fa-solid fa-chart-pie text-cyan-400"></i> 實測繁殖紀錄資料庫 (社群共用)
           </h3>
           <input type="text" id="breed-search-filter" oninput="renderBreedRecords()" placeholder="搜尋魚種..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs w-full sm:w-64">
         </div>
@@ -171,7 +171,7 @@
       "萊姆背海龜", "小藍鯨", "緋冠獅子魚", "紫水晶鬥魚", "祭典章魚"
     ];
 
-    const FISH_DB = [{ id: "000", num: 0, name: "金魚", star: 0, category: "基本", displayName: "#000 金魚 <span class=\"text-slate-400\">[基本]</span>" }];
+    const FISH_DB = [{ id: "000", num: 0, name: "金魚", star: 0, category: "基本", cleanName: "金魚", displayName: "金魚 ☆ [基本]" }];
     let currentId = 1;
 
     SPECIES.forEach(sp => {
@@ -184,13 +184,15 @@
         else if (currentId >= 156 && currentId <= 175) category = "神話";
 
         const starStr = '☆'.repeat(star);
+        const fullName = `${sp} ${starStr}`;
         FISH_DB.push({
           id: idStr,
           num: currentId,
-          name: `${sp} ${starStr}`,
+          name: fullName,
           star: star,
           category: category,
-          displayName: formatFishDisplayName(idStr, `${sp} ${starStr}`, category)
+          cleanName: `${fullName} [${category}]`,
+          displayName: formatFishDisplayName(idStr, fullName, category)
         });
         currentId++;
       }
@@ -198,7 +200,7 @@
 
     function formatFishDisplayName(id, name, cat) {
       let catSpan = `<span class="${getCategoryColorClass(cat)}">[${cat}]</span>`;
-      return `#${id} ${name} ${catSpan}`;
+      return `${name} ${catSpan}`;
     }
 
     function getCategoryColorClass(cat) {
@@ -267,8 +269,7 @@
 
     function initDropdowns() {
       const optionsHtml = FISH_DB.map(f => {
-        let plainText = f.displayName.replace(/<[^>]*>?/gm, '');
-        return `<option value="${f.id}">${plainText}</option>`;
+        return `<option value="${f.id}">${f.cleanName}</option>`;
       }).join('');
       ['breed-parent-a', 'breed-parent-b', 'breed-actual-child', 'breed-target-fish'].forEach(id => {
         const el = document.getElementById(id);
@@ -278,19 +279,29 @@
       document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
     }
 
-    // 完整修正後的 20 種官方精準配方（雙向不分順序）
+    // 精準對應使用者提供的所有 20 種官方配方（雙向不分順序）
     function getValidCategories(c1, c2) {
       let pair = [c1, c2].sort().join('+');
       
       if (pair === '基本+基本') return { text: "普通 100%", allowed: ["普通"] };
       if (pair === '基本+普通') return { text: "高級 10% | 普通 90%", allowed: ["高級", "普通"] };
-      if (pair === '基本+高級' || pair === '普通+普通') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '基本+稀有' || pair === '普通+高級') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '基本+傳說' || pair === '普通+稀有' || pair === '高級+高級') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
-      if (pair === '基本+神話' || pair === '普通+傳說' || pair === '高級+稀有') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
-      if (pair === '普通+神話' || pair === '高級+傳說' || pair === '稀有+稀有') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
-      if (pair === '高級+神話' || pair === '稀有+傳說') return { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] };
-      if (pair === '稀有+神話' || pair === '傳說+傳說') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
+      if (pair === '基本+高級') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '普通+普通') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '普通+高級') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '高級+高級') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
+      if (pair === '基本+稀有') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '普通+稀有') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
+      if (pair === '高級+稀有') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
+      if (pair === '稀有+稀有') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
+      if (pair === '基本+傳說') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
+      if (pair === '普通+傳說') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
+      if (pair === '高級+傳說') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
+      if (pair === '稀有+傳說') return { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] };
+      if (pair === '傳說+傳說') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
+      if (pair === '基本+神話') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
+      if (pair === '普通+神話') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
+      if (pair === '高級+神話') return { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] };
+      if (pair === '稀有+神話') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
       
       return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
     }
@@ -332,15 +343,15 @@
       const resContainer = document.getElementById('breed-parent-results');
       const countEl = document.getElementById('breed-parent-count');
 
-      const matches = localBreedRecords.filter(r => r.child === targetId);
+      const matches = localBreedRecords.filter(r => String(r.child).padStart(3, '0') === String(targetId).padStart(3, '0'));
       if(matches.length === 0) {
         countEl.innerText = "0 組";
-        resContainer.innerHTML = `<div class="text-slate-500 text-center py-2">尚無 ${targetFish.displayName} 的紀錄</div>`;
+        resContainer.innerHTML = `<div class="text-slate-500 text-center py-2">尚無 ${targetFish ? targetFish.displayName : targetId} 的紀錄</div>`;
       } else {
         countEl.innerText = `${matches.length} 組`;
         resContainer.innerHTML = matches.map(m => {
-          const fA = FISH_DB.find(f => f.id === m.pA);
-          const fB = FISH_DB.find(f => f.id === m.pB);
+          const fA = FISH_DB.find(f => f.id === String(m.pA).padStart(3, '0'));
+          const fB = FISH_DB.find(f => f.id === String(m.pB).padStart(3, '0'));
           return `<div class="bg-slate-800/80 p-2 rounded border border-slate-700/50 flex justify-between items-center">
             <span>${fA ? fA.displayName : m.pA} + ${fB ? fB.displayName : m.pB}</span>
             <span class="text-amber-400 font-bold">${m.count} 次</span>
@@ -407,9 +418,9 @@
       if(!tbody) return;
 
       const filtered = localBreedRecords.filter(r => {
-        const fA = FISH_DB.find(f => f.id === r.pA);
-        const fB = FISH_DB.find(f => f.id === r.pB);
-        const fC = FISH_DB.find(f => f.id === r.child);
+        const fA = FISH_DB.find(f => f.id === String(r.pA).padStart(3, '0'));
+        const fB = FISH_DB.find(f => f.id === String(r.pB).padStart(3, '0'));
+        const fC = FISH_DB.find(f => f.id === String(r.child).padStart(3, '0'));
         return ((r.time || '') + (fA?.displayName || '') + (fB?.displayName || '') + (fC?.displayName || '')).toLowerCase().includes(filterText);
       });
 
@@ -421,18 +432,18 @@
       }
 
       tbody.innerHTML = latestTen.map((r) => {
-        const fA = FISH_DB.find(f => f.id === r.pA);
-        const fB = FISH_DB.find(f => f.id === r.pB);
-        const fC = FISH_DB.find(f => f.id === r.child);
+        const fA = FISH_DB.find(f => f.id === String(r.pA).padStart(3, '0'));
+        const fB = FISH_DB.find(f => f.id === String(r.pB).padStart(3, '0'));
+        const fC = FISH_DB.find(f => f.id === String(r.child).padStart(3, '0'));
         
         let canDelete = (!r.ip || r.ip === userClientIp || userClientIp === "unknown");
         let deleteBtnHtml = canDelete ? `<button onclick="deleteBreedRecord('${r.pA}', '${r.pB}', '${r.child}')" class="text-red-400 hover:underline cursor-pointer">刪除</button>` : `<span class="text-slate-600 text-[10px]">非本人</span>`;
 
         return `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
           <td class="p-3 text-slate-400 text-[11px]">${r.time || '剛剛'}</td>
-          <td class="p-3">${fA ? fA.displayName : '#' + r.pA}</td>
-          <td class="p-3">${fB ? fB.displayName : '#' + r.pB}</td>
-          <td class="p-3 text-cyan-300 font-semibold">${fC ? fC.displayName : '#' + r.child}</td>
+          <td class="p-3">${fA ? fA.displayName : r.pA}</td>
+          <td class="p-3">${fB ? fB.displayName : r.pB}</td>
+          <td class="p-3 text-cyan-300 font-semibold">${fC ? fC.displayName : r.child}</td>
           <td class="p-3 text-center">${r.count} 次</td>
           <td class="p-3 text-right">${deleteBtnHtml}</td>
         </tr>`;
@@ -454,7 +465,7 @@
         });
       }
 
-      localBreedRecords = localBreedRecords.filter(r => !(r.pA === pA && r.pB === pB && r.child === child));
+      localBreedRecords = localBreedRecords.filter(r => !(String(r.pA).padStart(3, '0') === String(pA).padStart(3, '0') && String(r.pB).padStart(3, '0') === String(pB).padStart(3, '0') && String(r.child).padStart(3, '0') === String(child).padStart(3, '0')));
       localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
       renderBreedRecords();
       searchBreedParents();
@@ -472,14 +483,14 @@
         
         const matListStr = Object.entries(counts).map(([mId, qty]) => {
           const f = FISH_DB.find(x => x.id === mId);
-          return `<span class="bg-slate-900 border border-slate-700 px-2.5 py-1 rounded text-xs font-medium">${f ? f.displayName : '#' + mId} <span class="text-amber-400 font-bold">×${qty}</span></span>`;
+          return `<span class="bg-slate-900 border border-slate-700 px-2.5 py-1 rounded text-xs font-medium">${f ? f.displayName : mId} <span class="text-amber-400 font-bold">×${qty}</span></span>`;
         }).join(' ');
 
         return `<div class="bg-slate-900/80 rounded-xl border border-slate-700 overflow-hidden transition-all">
           <div onclick="toggleRecipe(${index})" class="p-3.5 flex justify-between items-center cursor-pointer hover:bg-slate-800/60">
             <div class="flex items-center space-x-3">
               <span class="bg-amber-400/10 text-amber-400 border border-amber-400/30 px-2.5 py-0.5 rounded text-xs font-bold">#${recipe.target}</span>
-              <span class="font-bold text-slate-100 text-sm">${targetFish ? targetFish.displayName : '#' + recipe.target}</span>
+              <span class="font-bold text-slate-100 text-sm">${targetFish ? targetFish.displayName : recipe.target}</span>
             </div>
             <div class="flex items-center gap-2 text-xs text-cyan-400 font-medium">
               <span>點擊查看 10 隻配方</span>
