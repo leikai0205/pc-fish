@@ -107,7 +107,7 @@
         </div>
       </div>
 
-      <!-- Live Experiment Table (Limited to 10) -->
+      <!-- Live Experiment Table -->
       <div class="bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
@@ -153,9 +153,6 @@
   </div>
 
   <script>
-    // ==========================================
-    // 請在此貼上您的 Google Apps Script 網址
-    // ==========================================
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxkzwnnEPwrsTtZz6Rs3Y2gTS-Bsk1-ZGk1y6iUa8sx8WqH57_lYZys85oOjqLbNWD99w/exec";
 
     let userClientIp = "unknown";
@@ -174,7 +171,7 @@
       "萊姆背海龜", "小藍鯨", "緋冠獅子魚", "紫水晶鬥魚", "祭典章魚"
     ];
 
-    const FISH_DB = [{ id: "000", num: 0, name: "金魚", star: 0, category: "基本", displayName: "#000 金魚 [基本]" }];
+    const FISH_DB = [{ id: "000", num: 0, name: "金魚", star: 0, category: "基本", displayName: "#000 金魚 <span class=\"text-slate-400\">[基本]</span>" }];
     let currentId = 1;
 
     SPECIES.forEach(sp => {
@@ -216,7 +213,6 @@
       }
     }
 
-    // 為文字中的品質套用對應顏色
     function colorizeCategoriesInText(text) {
       return text
         .replace(/神話/g, '<span class="text-purple-400 font-bold">神話</span>')
@@ -282,25 +278,19 @@
       document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
     }
 
-    // 精準對應 20 種官方配方（雙向不分順序）
+    // 完整修正後的 20 種官方精準配方（雙向不分順序）
     function getValidCategories(c1, c2) {
       let pair = [c1, c2].sort().join('+');
       
       if (pair === '基本+基本') return { text: "普通 100%", allowed: ["普通"] };
       if (pair === '基本+普通') return { text: "高級 10% | 普通 90%", allowed: ["高級", "普通"] };
-      if (pair === '基本+高級') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '普通+普通') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '基本+稀有') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '普通+高級') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
-      if (pair === '高級+高級') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
-      if (pair === '普通+稀有') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
-      if (pair === '基本+傳說') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
-      if (pair === '高級+稀有') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
-      if (pair === '普通+傳說' || pair === '基本+神話') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
-      if (pair === '稀有+稀有' || pair === '高級+傳說' || pair === '普通+神話') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
+      if (pair === '基本+高級' || pair === '普通+普通') return { text: "稀有 4% | 高級 20% | 普通 76%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '基本+稀有' || pair === '普通+高級') return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
+      if (pair === '基本+傳說' || pair === '普通+稀有' || pair === '高級+高級') return { text: "傳說 3% | 稀有 15% | 高級 44.2% | 普通 37.7%", allowed: ["傳說", "稀有", "高級", "普通"] };
+      if (pair === '基本+神話' || pair === '普通+傳說' || pair === '高級+稀有') return { text: "傳說 6.5% | 稀有 43% | 高級 50.4%", allowed: ["傳說", "稀有", "高級"] };
+      if (pair === '普通+神話' || pair === '高級+傳說' || pair === '稀有+稀有') return { text: "神話 2% | 傳說 10% | 稀有 47.5% | 高級 40.4%", allowed: ["神話", "傳說", "稀有", "高級"] };
       if (pair === '高級+神話' || pair === '稀有+傳說') return { text: "神話 3.5% | 傳說 44.3% | 稀有 52.1%", allowed: ["神話", "傳說", "稀有"] };
-      if (pair === '傳說+傳說') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
-      if (pair === '稀有+神話') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
+      if (pair === '稀有+神話' || pair === '傳說+傳說') return { text: "神話 5% | 傳說 51.3% | 稀有 43.7%", allowed: ["神話", "傳說", "稀有"] };
       
       return { text: "稀有 9.5% | 高級 41.6% | 普通 48.8%", allowed: ["稀有", "高級", "普通"] };
     }
@@ -385,7 +375,6 @@
       showToast("正在上傳紀錄至社群資料庫...");
 
       const nowStr = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
-      // 樂觀更新：立刻在前方插入
       localBreedRecords.unshift({
         pA: parentAId,
         pB: parentBId,
@@ -441,9 +430,9 @@
 
         return `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
           <td class="p-3 text-slate-400 text-[11px]">${r.time || '剛剛'}</td>
-          <td class="p-3">${fA?.displayName || r.pA}</td>
-          <td class="p-3">${fB?.displayName || r.pB}</td>
-          <td class="p-3 text-cyan-300 font-semibold">${fC?.displayName || r.child}</td>
+          <td class="p-3">${fA ? fA.displayName : '#' + r.pA}</td>
+          <td class="p-3">${fB ? fB.displayName : '#' + r.pB}</td>
+          <td class="p-3 text-cyan-300 font-semibold">${fC ? fC.displayName : '#' + r.child}</td>
           <td class="p-3 text-center">${r.count} 次</td>
           <td class="p-3 text-right">${deleteBtnHtml}</td>
         </tr>`;
@@ -465,7 +454,6 @@
         });
       }
 
-      // 本地同步立刻移除
       localBreedRecords = localBreedRecords.filter(r => !(r.pA === pA && r.pB === pB && r.child === child));
       localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
       renderBreedRecords();
@@ -473,7 +461,6 @@
       showToast("已刪除");
     }
 
-    // 合成頁面：一開始只顯示目標魚，點擊後展開 10 隻配方
     function renderSeasonRecipes() {
       const container = document.getElementById('season-recipes-container');
       if(!container) return;
