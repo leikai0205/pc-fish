@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PC Fish (Taskbar Aquarium) 繁殖與合成全能數據庫</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ocean: {
+              800: '#0f172a',
+              900: '#0b1120',
+              700: '#1e293b',
+              accent: '#38bdf8',
+              gold: '#f59e0b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-ocean-900 text-slate-100 min-h-screen font-sans flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-ocean-800 border-b border-slate-700 sticky top-0 z-50 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid font-bold text-2xl text-cyan-400 fa-fish"></i>
+        <div>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            PC Fish 養魚全能數據資料庫
+          </h1>
+          <p class="text-xs text-slate-400">繁殖機率計算 • 10隻魚合成配方 • 賽季魚圖鑑</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2 text-xs bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700">
+        <span id="sync-status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+        <span id="sync-status-text" class="text-slate-400">本機離線模式</span>
+        <button onclick="switchTab('tab-cloud')" class="text-cyan-400 hover:underline ml-1">設定同步</button>
+      </div>
+    </div>
+
+    <!-- Nav Tabs -->
+    <div class="max-w-7xl mx-auto px-4 flex overflow-x-auto space-x-2 border-t border-slate-700/50 pt-2">
+      <button id="nav-breed" onclick="switchTab('tab-breed')" class="nav-btn px-4 py-2 text-sm font-semibold rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-cyan-400 text-cyan-400 bg-slate-800/80">
+        <i class="fa-solid fa-heart"></i> 繁殖計算器
+      </button>
+      <button id="nav-synth" onclick="switchTab('tab-synth')" class="nav-btn px-4 py-2 text-sm font-semibold rounded-t-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200 border-b-2 border-transparent">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> 10隻魚合成與賽季配方
+      </button>
+      <button id="nav-cloud" onclick="switchTab('tab-cloud')" class="nav-btn px-4 py-2 text-sm font-semibold rounded-t-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200 border-b-2 border-transparent">
+        <i class="fa-solid fa-cloud"></i> 多人同步設定指南
+      </button>
+      <button id="nav-logs" onclick="switchTab('tab-logs')" class="nav-btn px-4 py-2 text-sm font-semibold rounded-t-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200 border-b-2 border-transparent">
+        <i class="fa-solid fa-database"></i> 數據管理 & 備份
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+
+    <!-- TAB 1: BREEDING -->
+    <div id="tab-breed" class="tab-content space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Forward Breeding -->
+        <div class="bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-cyan-400 flex items-center gap-2">
+              <i class="fa-solid fa-dna"></i> 正向雙親繁殖預測
+            </h2>
+            <span class="text-xs bg-cyan-950 text-cyan-300 px-2.5 py-1 rounded-full border border-cyan-800">選雙親找後代</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">公魚 Parent A</label>
+              <select id="breed-parent-a" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-cyan-400 focus:outline-none"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">母魚 Parent B</label>
+              <select id="breed-parent-b" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-cyan-400 focus:outline-none"></select>
+            </div>
+          </div>
+          <div id="breed-result" class="bg-slate-900 p-4 rounded-xl border border-slate-700/80 space-y-2">
+            <div class="text-xs text-slate-400">理論繁殖結果：</div>
+            <div id="breed-result-content" class="text-sm font-semibold text-slate-200">請選擇兩隻親魚進行計算</div>
+          </div>
+          <div class="border-t border-slate-700/60 pt-3 space-y-2">
+            <div class="text-xs font-medium text-slate-300 flex items-center justify-between">
+              <span><i class="fa-solid fa-flask text-amber-400"></i> 回報實測繁殖結果</span>
+            </div>
+            <div class="flex gap-2">
+              <select id="breed-actual-child" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs focus:border-cyan-400 focus:outline-none"></select>
+              <button onclick="recordBreedExperiment()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all">紀錄 +1</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reverse Target Search -->
+        <div class="bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-bullseye"></i> 反向目標追蹤 (我想生這隻魚)
+            </h2>
+            <span class="text-xs bg-amber-950 text-amber-300 px-2.5 py-1 rounded-full border border-amber-800">選目標找父母</span>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">選擇目標魚：</label>
+            <select id="breed-target-fish" onchange="searchBreedParents()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-amber-400 focus:outline-none"></select>
+          </div>
+          <div class="bg-slate-900 p-4 rounded-xl border border-slate-700/80 max-h-48 overflow-y-auto space-y-2">
+            <div class="text-xs text-slate-400 flex justify-between">
+              <span>建議親魚組合配方：</span>
+              <span id="breed-parent-count" class="text-amber-400 font-bold">0 組</span>
+            </div>
+            <div id="breed-parent-results" class="space-y-1.5 text-xs"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Experiment Table -->
+      <div class="bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-cyan-400"></i> 社群實測繁殖數據庫
+          </h3>
+          <input type="text" id="breed-search-filter" oninput="renderBreedRecords()" placeholder="搜尋魚種..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs w-full sm:w-64">
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-700">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-900 text-slate-400 border-b border-slate-700">
+                <th class="p-3">親魚 A</th><th class="p-3">親魚 B</th><th class="p-3">實測產出</th><th class="p-3 text-center">次數</th><th class="p-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="breed-records-table-body" class="divide-y divide-slate-700/50 bg-slate-900/40"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: SYNTHESIS -->
+    <div id="tab-synth" class="tab-content hidden space-y-6">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 rounded-2xl border border-cyan-500/30 shadow-2xl space-y-4">
+        <h2 class="text-xl font-black text-white flex items-center gap-2">
+          <i class="fa-solid fa-crown text-amber-400"></i> 第一季官方賽季魚 10 隻魚限定合成配方
+        </h2>
+        <div id="season-recipes-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2"></div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-7 bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+          <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+            <h3 class="text-base font-bold text-cyan-400"><i class="fa-solid fa-cubes"></i> 自訂 10 隻魚合成測試 / 紀錄</h3>
+            <button onclick="clearSynthesisPicker()" class="text-xs text-slate-400 hover:text-red-400">重設選擇</button>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5" id="synth-slots-container"></div>
+          <div class="bg-slate-900 p-4 rounded-xl border border-cyan-500/40 space-y-3">
+            <label class="block text-xs font-bold text-amber-300">實測合成結果：</label>
+            <div class="flex gap-2">
+              <select id="synth-target-result" class="bg-slate-800 border border-slate-600 rounded-lg p-2 text-xs text-slate-100 flex-1"></select>
+              <button onclick="saveSynthesisRecord()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs">儲存配方</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5 bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+          <h3 class="text-base font-bold text-amber-400"><i class="fa-solid fa-magnifying-glass"></i> 反向合成配方查詢</h3>
+          <select id="synth-reverse-target" onchange="queryReverseSynthesis()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm"></select>
+          <div id="synth-reverse-results" class="bg-slate-900 p-4 rounded-xl border border-slate-700 min-h-[200px]">請選擇上方魚種查詢已知配方</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: CLOUD SYNC -->
+    <div id="tab-cloud" class="tab-content hidden space-y-6">
+      <div class="bg-ocean-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+        <h2 class="text-xl font-bold text-cyan-400"><i class="fa-solid fa-cloud-arrow-up"></i> 多人共同記錄 & 免費雲端同步串接</h2>
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 space-y-3">
+          <label class="block text-xs font-bold text-slate-200">Google Apps Script Web App URL：</label>
+          <div class="flex gap-2">
+            <input type="text" id="gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-xs">
+            <button onclick="saveGasUrl()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2 rounded-lg text-xs">儲存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: BACKUP -->
+    <div id="tab-logs" class="tab-content hidden space-y-6">
+      <div class="bg-ocean-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+        <h2 class="text-xl font-bold text-slate-100"><i class="fa-solid fa-file-export text-cyan-400"></i> 本地數據管理與 JSON 檔案備份</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button onclick="exportJSONData()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg text-xs">匯出 JSON 備份檔</button>
+          <input type="file" id="import-json-file" accept=".json" class="hidden" onchange="handleImportJSON(event)">
+          <button onclick="document.getElementById('import-json-file').click()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-3 rounded-lg text-xs">匯入 JSON 備份檔</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 text-white border border-cyan-400 px-4 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 z-50 text-xs flex items-center gap-2">
+    <i id="toast-icon" class="fa-solid fa-circle-check text-cyan-400"></i>
+    <span id="toast-msg">操作成功</span>
+  </div>
+
+  <script>
+    // 魚類資料庫初始化 (176 隻魚)
+    const SPECIES_NAMES = ["Paradise Fish", "Platy", "Betta", "Tetra", "Guppy", "Barb", "Corydoras", "Angelfish", "Danio", "Molly", "Loach", "Gourami", "Cichlid", "Discus", "Rainbowfish", "Killifish", "Gobiy", "Catfish", "Pufferfish", "Arowana", "Pleco", "Knifefish", "Eel", "Bichir", "Sturgeon", "Gar", "Channa", "Datnioides", "Pirarucu", "Alligator Gar", "Bass", "Perch", "Sunfish", "Carp", "Koi"];
+    const FISH_DB = [{ id: "000", num: 0, name: "Goldfish", star: 1, displayName: "#000 Goldfish (★1)" }];
+    
+    let currentNum = 1;
+    SPECIES_NAMES.forEach((species, sIndex) => {
+      const starLevel = Math.min(5, Math.floor(sIndex / 7) + 1);
+      for (let star = 1; star <= 5; star++) {
+        const idStr = String(currentNum).padStart(3, '0');
+        FISH_DB.push({ id: idStr, num: currentNum, name: `${species} ★${star}`, star: star, displayName: `#${idStr} ${species} (★${star})` });
+        currentNum++;
+      }
+    });
+
+    // 應用狀態
+    let localBreedRecords = JSON.parse(localStorage.getItem('pcfish_breed_records') || '[]');
+    let localSynthRecords = JSON.parse(localStorage.getItem('pcfish_synth_records') || '[]');
+    let gasUrl = localStorage.getItem('pcfish_gas_url') || '';
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderSlotsUI();
+      initDropdowns();
+      renderSeasonRecipes();
+      renderBreedRecords();
+      calculateBreedPrediction();
+    });
+
+    // 切換頁面 (Tab 1 ~ Tab 4)
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('border-cyan-400', 'text-cyan-400', 'bg-slate-800/80');
+        btn.classList.add('border-transparent', 'text-slate-400');
+      });
+      document.getElementById(tabId).classList.remove('hidden');
+      const activeNav = document.getElementById('nav-' + tabId.replace('tab-', ''));
+      if(activeNav) {
+        activeNav.classList.add('border-cyan-400', 'text-cyan-400', 'bg-slate-800/80');
+        activeNav.classList.remove('border-transparent', 'text-slate-400');
+      }
+    }
+
+    function renderSlotsUI() {
+      const container = document.getElementById('synth-slots-container');
+      let html = '';
+      for(let i=1; i<=10; i++){
+        html += `<div class="bg-slate-900 p-2 rounded-lg border border-slate-700/70 text-xs">
+          <span class="text-[10px] text-cyan-400 font-bold block mb-1">第 ${i} 隻</span>
+          <select id="synth-slot-${i}" class="w-full bg-slate-800 border border-slate-600 rounded p-1 text-[11px]"></select>
+        </div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function initDropdowns() {
+      const optionsHtml = FISH_DB.map(f => `<option value="${f.id}">${f.displayName}</option>`).join('');
+      ['breed-parent-a', 'breed-parent-b', 'breed-actual-child', 'breed-target-fish', 'synth-target-result', 'synth-reverse-target'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.innerHTML = optionsHtml;
+      });
+      for(let i=1; i<=10; i++){
+        const el = document.getElementById(`synth-slot-${i}`);
+        if(el) el.innerHTML = optionsHtml;
+      }
+      document.getElementById('breed-parent-a').addEventListener('change', calculateBreedPrediction);
+      document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
+    }
+
+    function calculateBreedPrediction() {
+      const pA = FISH_DB.find(f => f.id === document.getElementById('breed-parent-a').value);
+      const pB = FISH_DB.find(f => f.id === document.getElementById('breed-parent-b').value);
+      const resContainer = document.getElementById('breed-result-content');
+      if (pA.id === pB.id) {
+        resContainer.innerHTML = `<span class="text-cyan-300">同種繁殖 (${pA.name})</span><br><span class="text-xs text-slate-400">70% 產出同種，30% 突變。</span>`;
+      } else {
+        resContainer.innerHTML = `<span class="text-amber-300">跨種雜交 (${pA.name} × ${pB.name})</span><br><span class="text-xs text-slate-400">各 50% 機率繼承雙親品種。</span>`;
+      }
+    }
+
+    function recordBreedExperiment() {
+      const parentA = document.getElementById('breed-parent-a').value;
+      const parentB = document.getElementById('breed-parent-b').value;
+      const child = document.getElementById('breed-actual-child').value;
+      
+      const existing = localBreedRecords.find(r => (r.pA === parentA && r.pB === parentB && r.child === child));
+      if(existing) {
+        existing.count++;
+      } else {
+        localBreedRecords.push({ pA: parentA, pB: parentB, child: child, count: 1 });
+      }
+      localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
+      renderBreedRecords();
+      showToast("繁殖結果已記錄！");
+    }
+
+    function renderBreedRecords() {
+      const tbody = document.getElementById('breed-records-table-body');
+      if(!tbody) return;
+      tbody.innerHTML = localBreedRecords.map((r, idx) => {
+        const fA = FISH_DB.find(f => f.id === r.pA);
+        const fB = FISH_DB.find(f => f.id === r.pB);
+        const fC = FISH_DB.find(f => f.id === r.child);
+        return `<tr class="border-b border-slate-800">
+          <td class="p-3">${fA.displayName}</td>
+          <td class="p-3">${fB.displayName}</td>
+          <td class="p-3 text-cyan-300">${fC.displayName}</td>
+          <td class="p-3 text-center">${r.count} 次</td>
+          <td class="p-3 text-right"><button onclick="deleteBreedRecord(${idx})" class="text-red-400 hover:underline">刪除</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function deleteBreedRecord(idx) {
+      localBreedRecords.splice(idx, 1);
+      localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
+      renderBreedRecords();
+    }
+
+    function renderSeasonRecipes() {
+      const container = document.getElementById('season-recipes-container');
+      if(!container) return;
+      container.innerHTML = `
+        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700">
+          <div class="font-bold text-amber-400">河豚/氣球魚 (Pufferfish)</div>
+          <div class="text-xs text-slate-400 mt-1">配方：10 隻 #000 金魚</div>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700">
+          <div class="font-bold text-cyan-400">霓虹脂鯉 (Neon Tetra)</div>
+          <div class="text-xs text-slate-400 mt-1">配方：5 隻 #001 + 5 隻 #002</div>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700">
+          <div class="font-bold text-emerald-400">金龍魚 (Golden Arowana)</div>
+          <div class="text-xs text-slate-400 mt-1">配方：#076~#085 各 1 隻</div>
+        </div>
+      `;
+    }
+
+    function clearSynthesisPicker() {
+      for(let i=1; i<=10; i++){
+        document.getElementById(`synth-slot-${i}`).value = "000";
+      }
+    }
+
+    function saveSynthesisRecord() {
+      const materials = [];
+      for(let i=1; i<=10; i++){
+        materials.push(document.getElementById(`synth-slot-${i}`).value);
+      }
+      const targetId = document.getElementById('synth-target-result').value;
+      localSynthRecords.push({ targetId, materials });
+      localStorage.setItem('pcfish_synth_records', JSON.stringify(localSynthRecords));
+      showToast("合成配方已儲存！");
+    }
+
+    function queryReverseSynthesis() {
+      const targetId = document.getElementById('synth-reverse-target').value;
+      const resContainer = document.getElementById('synth-reverse-results');
+      const matches = localSynthRecords.filter(r => r.targetId === targetId);
+      
+      if(matches.length === 0) {
+        resContainer.innerHTML = '<div class="text-xs text-slate-500">尚無玩家登錄此魚種之 10 隻魚合成配方。</div>';
+      } else {
+        resContainer.innerHTML = matches.map(m => `
+          <div class="bg-slate-800 p-2 rounded mb-2 text-xs">
+            <span class="text-amber-300 font-bold">10隻素材：</span> ${m.materials.join(', ')}
+          </div>
+        `).join('');
+      }
+    }
+
+    function saveGasUrl() {
+      gasUrl = document.getElementById('gas-url-input').value.trim();
+      localStorage.setItem('pcfish_gas_url', gasUrl);
+      showToast("雲端同步網址已儲存！");
+    }
+
+    function exportJSONData() {
+      const data = { breed: localBreedRecords, synth: localSynthRecords };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `pcfish_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    function handleImportJSON(e) {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const imported = JSON.parse(evt.target.result);
+          if(imported.breed) localBreedRecords = imported.breed;
+          if(imported.synth) localSynthRecords = imported.synth;
+          localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
+          localStorage.setItem('pcfish_synth_records', JSON.stringify(localSynthRecords));
+          renderBreedRecords();
+          showToast("備份資料匯入成功！");
+        } catch(err) {
+          alert("JSON 格式錯誤！");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
