@@ -136,14 +136,14 @@
     <!-- TAB 2: SYNTHESIS -->
     <div id="tab-synth" class="tab-content hidden space-y-6">
       
-      <!-- 新增：玩家自訂 10 隻魚合成配方記錄器 -->
+      <!-- 玩家自訂 10 隻魚合成配方記錄器 -->
       <div class="bg-ocean-800 p-5 rounded-2xl border border-cyan-500/40 shadow-xl space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-700 pb-3">
           <div>
             <h2 class="text-lg font-bold text-cyan-400 flex items-center gap-2">
               <i class="fa-solid fa-pen-to-square"></i> 回報／記錄 10 隻魚合成配方
             </h2>
-            <p class="text-xs text-slate-400">選擇 10 隻材料魚與合成出來的目標魚，記錄後將永久保存在資料庫中供隨時檢視</p>
+            <p class="text-xs text-slate-400">選擇 10 隻材料魚與合成出來的目標魚，記錄後將直接同步至 Google 試算表供所有人檢視</p>
           </div>
           <button onclick="clearSynthRecordInputs()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-1.5 rounded-lg transition-all">清空選項</button>
         </div>
@@ -170,12 +170,12 @@
       <div class="bg-ocean-800 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
         <div class="flex justify-between items-center">
           <h2 class="text-lg font-bold text-cyan-400 flex items-center gap-2">
-            <i class="fa-solid fa-folder-open text-cyan-400"></i> 玩家自訂合成配方資料庫
+            <i class="fa-solid fa-folder-open text-cyan-400"></i> 玩家自訂合成配方資料庫 (雲端共用)
           </h2>
           <span id="user-synth-count" class="text-xs text-slate-400">共 0 組配方</span>
         </div>
         <div id="user-synth-recipes-container" class="space-y-2.5 pt-1">
-          <div class="text-slate-500 text-xs text-center py-4">尚無自訂合成配方，請透過上方表單新增</div>
+          <div class="text-slate-500 text-xs text-center py-4">正在從雲端載入合成配方...</div>
         </div>
       </div>
 
@@ -290,13 +290,12 @@
     ];
 
     let localBreedRecords = JSON.parse(localStorage.getItem('pcfish_breed_records') || '[]');
-    let userSynthRecords = JSON.parse(localStorage.getItem('pcfish_user_synth_records') || '[]');
+    let userSynthRecords = []; // 從雲端 Google 試算表同步
 
     window.addEventListener('DOMContentLoaded', () => {
       initDropdowns();
       initSynthSelectors();
       renderSeasonRecipes();
-      renderUserSynthRecipes();
       calculateBreedPrediction();
       fetchAllRecordsFromGAS();
       setInterval(fetchAllRecordsFromGAS, 10000);
@@ -328,7 +327,6 @@
       document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
     }
 
-    // 初始化 10 個合成材料選單
     function initSynthSelectors() {
       const container = document.getElementById('synth-selectors-container');
       if(!container) return;
@@ -351,7 +349,6 @@
       container.innerHTML = html;
     }
 
-    // 清空自訂合成材料輸入
     function clearSynthRecordInputs() {
       document.getElementById('synth-record-target').selectedIndex = 0;
       for(let i = 1; i <= 10; i++) {
@@ -360,7 +357,7 @@
       }
     }
 
-    // 儲存玩家自訂合成配方
+    // 儲存玩家自訂合成配方並同步至 Google 試算表
     function recordSynthFormula() {
       const targetId = document.getElementById('synth-record-target').value;
       const materials = [];
@@ -375,19 +372,36 @@
       }
 
       const nowStr = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+      
+      // 先在前端暫存顯示
       userSynthRecords.unshift({
         target: targetId,
         materials: materials,
         time: nowStr
       });
-
-      localStorage.setItem('pcfish_user_synth_records', JSON.stringify(userSynthRecords));
       renderUserSynthRecipes();
       clearSynthRecordInputs();
-      showToast("成功新增合成配方紀錄！");
+      showToast("正在上傳合成配方至 Google 試算表...");
+
+      if (GAS_API_URL && !GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
+        fetch(GAS_API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "addSynth",
+            target: targetId,
+            materials: materials
+          })
+        }).then(() => {
+          showToast("合成配方上傳成功！");
+          setTimeout(fetchAllRecordsFromGAS, 1500);
+        });
+      } else {
+        showToast("已紀錄！");
+      }
     }
 
-    // 渲染玩家自訂合成配方清單
     function renderUserSynthRecipes() {
       const container = document.getElementById('user-synth-recipes-container');
       const countEl = document.getElementById('user-synth-count');
@@ -396,7 +410,7 @@
       countEl.innerText = `共 ${userSynthRecords.length} 組配方`;
 
       if(userSynthRecords.length === 0) {
-        container.innerHTML = `<div class="text-slate-500 text-xs text-center py-4">尚無自訂合成配方，請透過上方表單新增</div>`;
+        container.innerHTML = `<div class="text-slate-500 text-xs text-center py-4">尚無雲端自訂合成配方</div>`;
         return;
       }
 
@@ -417,9 +431,8 @@
               <span class="font-bold text-slate-100 text-sm">${targetFish ? targetFish.displayName : recipe.target}</span>
               <span class="text-[10px] text-slate-500">(${recipe.time || ''})</span>
             </div>
-            <div class="flex items-center gap-2">
-              <button onclick="event.stopPropagation(); deleteUserSynthRecipe(${index})" class="text-red-400 hover:text-red-300 text-xs px-2 py-1"><i class="fa-solid fa-trash"></i></button>
-              <span class="text-xs text-cyan-400 font-medium">查看 10 隻材料</span>
+            <div class="flex items-center gap-2 text-xs text-cyan-400 font-medium">
+              <span>點擊查看 10 隻材料</span>
               <i id="user-recipe-icon-${index}" class="fa-solid fa-chevron-down transition-transform"></i>
             </div>
           </div>
@@ -440,14 +453,6 @@
         body.classList.add('hidden');
         icon.classList.remove('rotate-180');
       }
-    }
-
-    function deleteUserSynthRecipe(index) {
-      if(!confirm("確定要刪除這筆自訂合成配方嗎？")) return;
-      userSynthRecords.splice(index, 1);
-      localStorage.setItem('pcfish_user_synth_records', JSON.stringify(userSynthRecords));
-      renderUserSynthRecipes();
-      showToast("已刪除紀錄");
     }
 
     function getValidCategories(c1, c2) {
@@ -492,9 +497,11 @@
       resContainer.innerHTML = `<div>${pA.displayName} × ${pB.displayName}</div><div class="mt-1">【機率預測】${formattedText}</div>`;
     }
 
+    // 同步讀取雲端資料 (Breed 與 Synth)
     function fetchAllRecordsFromGAS() {
       if (!GAS_API_URL || GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
         renderBreedRecords();
+        renderUserSynthRecipes();
         return;
       }
 
@@ -506,6 +513,10 @@
             localStorage.setItem('pcfish_breed_records', JSON.stringify(localBreedRecords));
             renderBreedRecords();
             searchBreedParents();
+          }
+          if (data.synth) {
+            userSynthRecords = data.synth;
+            renderUserSynthRecipes();
           }
         })
         .catch(err => { console.error("同步失敗", err); });
