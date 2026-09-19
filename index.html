@@ -367,7 +367,8 @@
       userSynthRecords.unshift({
         target: targetId,
         materials: materials,
-        time: nowStr
+        time: nowStr,
+        ip: userClientIp
       });
       renderUserSynthRecipes();
       clearSynthRecordInputs();
@@ -378,7 +379,7 @@
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "addSynth", target: targetId, materials: materials })
+          body: JSON.stringify({ action: "addSynth", target: targetId, materials: materials, ip: userClientIp })
         }).then(() => {
           showToast("合成配方上傳成功！");
           setTimeout(fetchAllRecordsFromGAS, 1500);
@@ -388,7 +389,7 @@
       }
     }
 
-    // 依照編號群組化並按數字大小排序（小編號在上、大編號在下）
+    // 依照編號群組化並按數字大小排序，並加入 IP 刪除判定
     function renderUserSynthRecipes() {
       const container = document.getElementById('user-synth-recipes-container');
       const countEl = document.getElementById('user-synth-count');
@@ -401,7 +402,6 @@
         return;
       }
 
-      // 1. 根據 target 的編號進行分組 (Map)
       const grouped = {};
       userSynthRecords.forEach(recipe => {
         const tId = String(recipe.target).padStart(3, '0');
@@ -411,16 +411,13 @@
         grouped[tId].push(recipe);
       });
 
-      // 2. 將目標魚編號進行排序（數字小到大，如 #055 排在 #066 上面）
       const sortedTargetIds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
 
-      // 3. 渲染畫面
       container.innerHTML = sortedTargetIds.map((tId, gIdx) => {
         const targetFish = FISH_DB.find(f => f.id === tId);
         const recipes = grouped[tId];
         const targetDisplayName = targetFish ? targetFish.displayName : `#${tId}`;
 
-        // 如果該目標魚有多組回報，自動編號為 配方 1、配方 2...
         let recipesHtml = recipes.map((recipe, rIdx) => {
           const counts = {};
           recipe.materials.forEach(m => { 
@@ -436,11 +433,19 @@
           const labelTitle = recipes.length > 1 ? `配方 ${rIdx + 1}` : `詳細 10 隻材料組成`;
           const timeStr = recipe.time ? `<span class="text-[10px] text-slate-500">(${recipe.time})</span>` : '';
 
+          let canDelete = (!recipe.ip || recipe.ip === userClientIp || userClientIp === "unknown");
+          let deleteBtnHtml = canDelete ? 
+            `<button onclick="deleteSynthRecord('${recipe.target}', '${recipe.time || ''}')" class="text-red-400 hover:underline cursor-pointer">刪除此配方</button>` : 
+            `<span class="text-slate-600 text-[10px]">非本人上傳</span>`;
+
           return `
             <div class="bg-slate-950/70 rounded-lg border border-slate-800 p-3 space-y-2">
               <div class="flex justify-between items-center text-xs">
-                <span class="font-bold text-cyan-300">${labelTitle}</span>
-                ${timeStr}
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-cyan-300">${labelTitle}</span>
+                  ${timeStr}
+                </div>
+                <div>${deleteBtnHtml}</div>
               </div>
               <div class="flex flex-wrap gap-2">
                 ${matListStr}
@@ -468,6 +473,26 @@
           </div>
         `;
       }).join('');
+    }
+
+    function deleteSynthRecord(target, time) {
+      if(!confirm("確定要刪除這筆自訂合成配方嗎？")) return;
+
+      if (GAS_API_URL && !GAS_API_URL.includes("您的_GOOGLE_APPS_SCRIPT_網址")) {
+        fetch(GAS_API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "deleteSynth", target: target, time: time })
+        }).then(() => {
+          showToast("已送出刪除指令");
+          setTimeout(fetchAllRecordsFromGAS, 1500);
+        });
+      }
+
+      userSynthRecords = userSynthRecords.filter(r => !(String(r.target) === String(target) && String(r.time || '') === String(time)));
+      renderUserSynthRecipes();
+      showToast("已刪除");
     }
 
     function toggleUserRecipeGroup(index) {
