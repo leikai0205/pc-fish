@@ -34,12 +34,12 @@
           <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
             PC Fish 養魚全能數據資料庫
           </h1>
-          <p class="text-xs text-slate-400">繁殖防呆預測 • 10隻魚合成與賽季配方</p>
+          <p class="text-xs text-slate-400">繁殖防呆預測 • 10隻魚合成模擬與賽季配方</p>
         </div>
       </div>
     </div>
     <div class="max-w-7xl mx-auto px-4 flex space-x-2 border-t border-slate-700/50 pt-2">
-      <button id="nav-breed" onclick="switchTab('tab-breed')" class="nav-btn px-4 py-2 text-sm font-semibold rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-cyan-400 text-cyan-400 bg-slate-800/80">
+      <button id="nav-breed" onclick="switchTab('tab-breed')" class="nav-btn px-4 py-2 text-sm font-semibold rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-cyan-400 text-cyan-400 bg-slate-800/85">
         <i class="fa-solid fa-heart"></i> 繁殖計算器
       </button>
       <button id="nav-synth" onclick="switchTab('tab-synth')" class="nav-btn px-4 py-2 text-sm font-semibold rounded-t-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200 border-b-2 border-transparent">
@@ -135,15 +135,47 @@
 
     <!-- TAB 2: SYNTHESIS -->
     <div id="tab-synth" class="tab-content hidden space-y-6">
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 rounded-2xl border border-cyan-500/30 shadow-2xl space-y-4">
+      
+      <!-- 自訂 10 隻魚合成模擬區 (新增) -->
+      <div class="bg-ocean-800 p-5 rounded-2xl border border-cyan-500/40 shadow-xl space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-700 pb-3">
+          <div>
+            <h2 class="text-lg font-bold text-cyan-400 flex items-center gap-2">
+              <i class="fa-solid fa-calculator"></i> 自訂 10 隻魚合成模擬器
+            </h2>
+            <p class="text-xs text-slate-400">請在下方選單中自由配置 10 隻材料魚，系統將自動分析可能合成出的目標魚與機率</p>
+          </div>
+          <button onclick="clearSynthInputs()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-1.5 rounded-lg transition-all">清空全部</button>
+        </div>
+
+        <!-- 10個下拉選單的網格 -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3" id="synth-selectors-container">
+          <!-- 透過 JS 動態產生 10 個 select -->
+        </div>
+
+        <!-- 模擬計算結果顯示區 -->
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700/85 space-y-2">
+          <div class="text-xs text-slate-400 flex justify-between items-center">
+            <span>合成結果模擬分析：</span>
+            <span id="synth-match-status" class="text-xs text-cyan-400 font-bold">已選擇 0 / 10 隻</span>
+          </div>
+          <div id="synth-result-content" class="text-sm font-semibold text-slate-200">
+            請至少選擇材料魚進行模擬...
+          </div>
+        </div>
+      </div>
+
+      <!-- 賽季配方對照表 -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 rounded-2xl border border-slate-700 shadow-2xl space-y-4">
         <div class="flex justify-between items-center">
-          <h2 class="text-xl font-black text-white flex items-center gap-2">
-            <i class="fa-solid fa-crown text-amber-400"></i> 第一季 15 種賽季魚固定 10 隻魚合成配方
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-crown text-amber-400"></i> 第一季 15 種賽季魚固定配方快速對照
           </h2>
-          <span class="text-xs text-slate-400">點擊下方項目可展開查看詳細 10 隻配方</span>
+          <span class="text-xs text-slate-400">點擊可展開 10 隻詳細組成</span>
         </div>
         <div id="season-recipes-container" class="space-y-2.5 pt-2"></div>
       </div>
+
     </div>
   </main>
 
@@ -247,6 +279,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       initDropdowns();
+      initSynthSelectors();
       renderSeasonRecipes();
       calculateBreedPrediction();
       fetchAllRecordsFromGAS();
@@ -256,13 +289,13 @@
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('border-cyan-400', 'text-cyan-400', 'bg-slate-800/80');
+        btn.classList.remove('border-cyan-400', 'text-cyan-400', 'bg-slate-800/85');
         btn.classList.add('border-transparent', 'text-slate-400');
       });
       document.getElementById(tabId).classList.remove('hidden');
       const activeNav = document.getElementById('nav-' + tabId.replace('tab-', ''));
       if(activeNav) {
-        activeNav.classList.add('border-cyan-400', 'text-cyan-400', 'bg-slate-800/80');
+        activeNav.classList.add('border-cyan-400', 'text-cyan-400', 'bg-slate-800/85');
         activeNav.classList.remove('border-transparent', 'text-slate-400');
       }
     }
@@ -277,6 +310,87 @@
       });
       document.getElementById('breed-parent-a').addEventListener('change', calculateBreedPrediction);
       document.getElementById('breed-parent-b').addEventListener('change', calculateBreedPrediction);
+    }
+
+    // 初始化 10 個合成材料選單
+    function initSynthSelectors() {
+      const container = document.getElementById('synth-selectors-container');
+      if(!container) return;
+
+      const optionsHtml = '<option value="">-- 請選擇材料魚 --</option>' + FISH_DB.map(f => {
+        return `<option value="${f.id}">${f.cleanName}</option>`;
+      }).join('');
+
+      let html = '';
+      for(let i = 1; i <= 10; i++) {
+        html += `
+          <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700/80 space-y-1">
+            <label class="block text-[11px] font-semibold text-slate-400">材料魚 #${i}</label>
+            <select id="synth-mat-${i}" onchange="calculateSynthSimulation()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs focus:border-cyan-400 focus:outline-none">
+              ${optionsHtml}
+            </select>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    // 清空合成材料
+    function clearSynthInputs() {
+      for(let i = 1; i <= 10; i++) {
+        const el = document.getElementById(`synth-mat-${i}`);
+        if(el) el.value = "";
+      }
+      calculateSynthSimulation();
+    }
+
+    // 計算 10 隻合成模擬結果
+    function calculateSynthSimulation() {
+      const selectedIds = [];
+      for(let i = 1; i <= 10; i++) {
+        const val = document.getElementById(`synth-mat-${i}`)?.value;
+        if(val) selectedIds.push(val);
+      }
+
+      const statusEl = document.getElementById('synth-match-status');
+      const resultEl = document.getElementById('synth-result-content');
+      statusEl.innerText = `已選擇 ${selectedIds.length} / 10 隻`;
+
+      if(selectedIds.length === 0) {
+        resultEl.innerHTML = `請至少選擇材料魚進行模擬...`;
+        return;
+      }
+
+      // 比對是否符合 15 種賽季配方之一
+      let matchedRecipe = null;
+      for(let recipe of SEASON_RECIPES) {
+        // 比對陣列是否相符（不計順序）
+        let recipeCopy = [...recipe.materials].sort();
+        let selectedCopy = [...selectedIds].sort();
+        if(JSON.stringify(recipeCopy) === JSON.stringify(selectedCopy)) {
+          matchedRecipe = recipe;
+          break;
+        }
+      }
+
+      if(matchedRecipe) {
+        const targetFish = FISH_DB.find(f => f.id === matchedRecipe.target);
+        resultEl.innerHTML = `
+          <div class="flex items-center gap-2 text-emerald-400 mb-1">
+            <i class="fa-solid fa-circle-check"></i> 完美符合賽季配方！
+          </div>
+          <div>成功合成目標：<span class="text-base font-bold text-white">${targetFish ? targetFish.displayName : matchedRecipe.target}</span></div>
+        `;
+      } else {
+        // 如果未完全符合固定配方，提供統計與猜測提示
+        let cats = selectedIds.map(id => FISH_DB.find(f => f.id === id)?.category).filter(Boolean);
+        resultEl.innerHTML = `
+          <div class="text-amber-400 mb-1">
+            <i class="fa-solid fa-triangle-exclamation"></i> 未完全符合 15 種賽季黃金配方
+          </div>
+          <div class="text-xs text-slate-300">您目前選取的 10 隻材料包含等級：[${cats.join(', ')}]。請參考下方賽季配方確認正確代號。</div>
+        `;
+      }
     }
 
     function getValidCategories(c1, c2) {
