@@ -653,13 +653,17 @@
       const tbody = document.getElementById('breed-records-table-body');
       if(!tbody) return;
 
-      const filtered = localBreedRecords.filter(r => {
+      // 【已加入】依時間由新到舊排序
+      const sortedRecords = [...localBreedRecords].sort((a, b) => new Date(b.time) - new Date(a.time));
+
+      const filtered = sortedRecords.filter(r => {
         const fA = FISH_DB.find(f => f.id === String(r.pA).padStart(3, '0'));
         const fB = FISH_DB.find(f => f.id === String(r.pB).padStart(3, '0'));
         const fC = FISH_DB.find(f => f.id === String(r.child).padStart(3, '0'));
         return ((r.time || '') + (fA?.displayName || '') + (fB?.displayName || '') + (fC?.displayName || '')).toLowerCase().includes(filterText);
       });
 
+      // 【已加入】只取前 10 筆
       const latestTen = filtered.slice(0, 10);
 
       if(latestTen.length === 0) {
